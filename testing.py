@@ -40,7 +40,8 @@ def home():
     return "د ډاونلوډر بوټ روان دی!"
 
 def run_web():
-    port = int(os.getenv("PORT", 8080))
+    #port = int(os.getenv("PORT", 8080))
+    port = int(os.getenv("PORT", 8000))
     flask_app.run(host="0.0.0.0", port=port)
 
 def keep_alive():
@@ -294,17 +295,3 @@ async def total(update: Update, context: ContextTypes.DEFAULT_TYPE):
         filename_hint="total_downloads.txt",
     )
 
-
-# ---------- Run bot ----------
-if __name__ == "__main__":
-    keep_alive()
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("stats", stats))  # optional
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
-    app.add_handler(CommandHandler("total", total))
-
-
-    print("🚀 Bot is running...")
-    app.run_polling()

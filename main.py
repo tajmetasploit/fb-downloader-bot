@@ -42,7 +42,7 @@ def home():
     return "د ډاونلوډر بوټ روان دی!"
 
 def run_web():
-    port = int(os.getenv("PORT", 8080))
+    port = int(os.getenv("PORT", 5000))
     flask_app.run(host="0.0.0.0", port=port)
 
 def keep_alive():
