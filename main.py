@@ -1,6 +1,8 @@
 
 
 # main.py
+import yt_dlp
+import datetime
 import os
 import json
 import tempfile
@@ -150,6 +152,11 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     #Optional: show user count via /stats
     await send_text_or_file(update.effective_chat.id, f"👥 Unique users: {len(users)}", context, filename_hint="stats.txt")
 
+
+def log_download(video_url):
+    with open("downloads.txt", "a", encoding="utf-8") as f:
+        f.write(f"{datetime.datetime.now()} - {video_url}\n")
+
 async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
     if not message or not message.text:
@@ -198,6 +205,10 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if not os.path.exists(file_path):
                 await send_text_or_file(update.effective_chat.id, "❌ ویډیو ډاونلوډ نشوه.", context, filename_hint="error.txt")
                 return
+        
+            # 🔹 Silent logging of downloaded URL
+            with open("downloads.txt", "a", encoding="utf-8") as f:
+                f.write(f"{datetime.datetime.now().isoformat()} — {url}\n")
 
             file_size = os.path.getsize(file_path)
             duration = info.get("duration")
