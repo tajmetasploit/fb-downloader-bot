@@ -153,10 +153,6 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await send_text_or_file(update.effective_chat.id, f"👥 Unique users: {len(users)}", context, filename_hint="stats.txt")
 
 
-def log_download(video_url):
-    with open("downloads.txt", "a", encoding="utf-8") as f:
-        f.write(f"{datetime.datetime.now()} - {video_url}\n")
-
 async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
     if not message or not message.text:
