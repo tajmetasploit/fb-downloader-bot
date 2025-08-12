@@ -322,41 +322,6 @@ async def total(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-"""TOTAL_DOWNLOADS_FILE = "total_downloads.txt"
-
-def load_total_downloads():
-    if os.path.exists(TOTAL_DOWNLOADS_FILE):
-        try:
-            with open(TOTAL_DOWNLOADS_FILE, "r", encoding="utf-8") as f:
-                return int(f.read().strip())
-        except Exception:
-            return 0
-    return 0
-
-def save_total_downloads(count):
-    try:
-        with open(TOTAL_DOWNLOADS_FILE, "w", encoding="utf-8") as f:
-            f.write(str(count))
-    except Exception as e:
-        logger.error("Failed to save total downloads: %s", e)
-
-total_downloads = load_total_downloads()
-
-# Inside your download_video handler, after a successful video send (before or after sending video), add:
-
-# if upload success:
-total_downloads += 1
-save_total_downloads(total_downloads)
-
-async def total(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await send_text_or_file(
-        update.effective_chat.id,
-        f"📥 ټوله ښکته شوې ویډیوګانې: {total_downloads}",
-        context,
-        filename_hint="downloads.txt",
-    )
-"""
-
 # ---------- Run bot ----------
 if __name__ == "__main__":
     keep_alive()
