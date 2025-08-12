@@ -54,7 +54,7 @@ def keep_alive():
 # ---------- Persistence (users) ----------
 USERS_FILE = "users.json"
 
-def load_users():
+"""def load_users():
     if os.path.exists(USERS_FILE):
         try:
             with open(USERS_FILE, "r", encoding="utf-8") as f:
@@ -63,7 +63,35 @@ def load_users():
         except Exception as e:
             logger.error("Failed to load users.json: %s", e)
             return set()
-    return set()
+    return set()"""
+
+# ---------- Persistence (users) ----------
+USERS_FILE = "users.json"
+
+def load_users():
+    if not os.path.exists(USERS_FILE):
+        # Create an empty users.json file on first run
+        try:
+            with open(USERS_FILE, "w", encoding="utf-8") as f:
+                json.dump([], f, ensure_ascii=False, indent=2)
+            return set()
+        except Exception as e:
+            logger.error("Failed to create users.json: %s", e)
+            return set()
+
+    try:
+        with open(USERS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return set(data)
+    except Exception as e:
+        logger.error("Failed to load users.json, resetting file: %s", e)
+        # Try to reset the file if corrupted
+        try:
+            with open(USERS_FILE, "w", encoding="utf-8") as f:
+                json.dump([], f, ensure_ascii=False, indent=2)
+        except Exception as e2:
+            logger.error("Failed to reset users.json: %s", e2)
+        return set()
 
 def save_users(users_set):
     try:
@@ -269,7 +297,32 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 filename_hint="error.txt",
             )
 
-TOTAL_DOWNLOADS_FILE = "total_downloads.txt"
+
+VIDEO_LINKS_FILE = "downloads.txt"  # file where links are saved
+
+def get_total_downloads():
+    # If file doesn't exist → return 0 without creating it
+    if not os.path.exists(VIDEO_LINKS_FILE):
+        return 0
+    try:
+        with open(VIDEO_LINKS_FILE, "r", encoding="utf-8") as f:
+            return sum(1 for _ in f if _.strip())
+    except Exception as e:
+        logger.error("Failed to read video links file: %s", e)
+        return 0
+
+# Command handler to show total downloads
+async def total(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    total_downloads = get_total_downloads()
+    await send_text_or_file(
+        update.effective_chat.id,
+        f"📥 ټوله ښکته شوې ویډیوګانې: {total_downloads}",
+        context,
+        filename_hint="downloads.txt",
+    )
+
+
+"""TOTAL_DOWNLOADS_FILE = "total_downloads.txt"
 
 def load_total_downloads():
     if os.path.exists(TOTAL_DOWNLOADS_FILE):
@@ -300,9 +353,9 @@ async def total(update: Update, context: ContextTypes.DEFAULT_TYPE):
         update.effective_chat.id,
         f"📥 ټوله ښکته شوې ویډیوګانې: {total_downloads}",
         context,
-        filename_hint="total_downloads.txt",
+        filename_hint="downloads.txt",
     )
-
+"""
 
 # ---------- Run bot ----------
 if __name__ == "__main__":
