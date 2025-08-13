@@ -193,9 +193,14 @@ install or update to the nightly release before submitting a bug report:
     # To install nightly with pip:
     python3 -m pip install -U --pre "yt-dlp[default]"
 
+When running a yt-dlp version that is older than 90 days, you will see a
+warning message suggesting to update to the latest version. You can
+suppress this warning by adding --no-update to your command or
+configuration file.
+
 DEPENDENCIES
 
-Python versions 3.9+ (CPython) and 3.10+ (PyPy) are supported. Other
+Python versions 3.9+ (CPython) and 3.11+ (PyPy) are supported. Other
 versions and implementations may or may not work correctly.
 
 While all the other dependencies are optional, ffmpeg and ffprobe are
@@ -246,8 +251,8 @@ Metadata
     GPLv2+
 -   AtomicParsley - For --embed-thumbnail in mp4/m4a files when
     mutagen/ffmpeg cannot. Licensed under GPLv2+
--   xattr, pyxattr or setfattr - For writing xattr metadata (--xattr) on
-    Mac and BSD. Licensed under MIT, LGPL2.1 and GPLv2+ respectively
+-   xattr, pyxattr or setfattr - For writing xattr metadata (--xattrs)
+    on Mac and BSD. Licensed under MIT, LGPL2.1 and GPLv2+ respectively
 
 Misc
 
@@ -2468,10 +2473,9 @@ vimeo
 
 -   client: Client to extract video data from. The currently available
     clients are android, ios, and web. Only one client can be used. The
-    android client is used by default. If account cookies or credentials
-    are used for authentication, then the web client is used by default.
-    The web client only works with authentication. The ios client only
-    works with previously cached OAuth tokens
+    web client is used by default. The web client only works with
+    account cookies or login credentials. The android and ios clients
+    only work with previously cached OAuth tokens
 -   original_format_policy: Policy for when to try extracting original
     formats. One of always, never, or auto. The default auto policy
     tries to avoid exceeding the web client's API rate-limit by only
@@ -3102,7 +3106,6 @@ These are aliases that are no longer documented for various reasons
     --dump-headers                   --print-traffic
     --dump-intermediate-pages        --dump-pages
     --force-write-download-archive   --force-write-archive
-    --load-info                      --load-info-json
     --no-clean-infojson              --no-clean-info-json
     --no-split-tracks                --no-split-chapters
     --no-write-srt                   --no-write-subs

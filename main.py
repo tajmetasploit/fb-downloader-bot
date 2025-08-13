@@ -1,6 +1,8 @@
 
 
 # main.py
+from functools import partial
+import asyncio
 import yt_dlp
 import datetime
 import os
@@ -24,7 +26,9 @@ from telegram.ext import (
 )
 
 load_dotenv()
-MAX_TELEGRAM_FILESIZE = 50 * 1024 * 1024  # 50 MB
+#MAX_TELEGRAM_FILESIZE = 50 * 1024 * 1024  # 50 MB    2 * 1024 * 1024 * 1024  # 2 GB 
+MAX_TELEGRAM_FILESIZE = 2 * 1024 * 1024 * 1024  # 2 GB 
+
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN not found in environment. Put it in .env")
@@ -181,6 +185,26 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await send_text_or_file(update.effective_chat.id, f"👥 Unique users: {len(users)}", context, filename_hint="stats.txt")
 
 
+MAX_UPLOAD_SIZE = 2 * 1024 * 1024 * 1024  # 2 GB
+
+PLATFORM_NAMES = {
+    "facebook.com": "Facebook",
+    "fb.watch": "Facebook",
+    "tiktok.com": "TikTok",
+    "instagram.com": "Instagram",
+    "vk.com": "VK",
+    "snapchat.com": "Snapchat",
+    "youtube.com": "YouTube",
+    "youtu.be": "YouTube",
+}
+
+def get_platform_name(url: str) -> str:
+    for key, name in PLATFORM_NAMES.items():
+        if key in url:
+            return name
+    return "Unknown"
+
+
 async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
     if not message or not message.text:
@@ -195,6 +219,8 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
             filename_hint="error.txt",
         )
         return
+
+    platform = get_platform_name(url)
 
     # Add user to persistent set if new
     user_id = update.effective_user.id
@@ -213,24 +239,21 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "noplaylist": True,
                 "quiet": True,
                 "no_warnings": True,
-                # Optional: pass headers or cookie file if you need to download restricted content
                 "http_headers": {
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                                   "(KHTML, like Gecko) Chrome/115.0 Safari/537.36",
                 },
-                # "cookiefile": "cookies.txt",  # uncomment/use if you have cookies
             }
 
             with YoutubeDL(ydl_opts) as ydl:
-                # extract_info downloads the file because download=True
                 info = ydl.extract_info(url, download=True)
                 file_path = ydl.prepare_filename(info)
 
             if not os.path.exists(file_path):
                 await send_text_or_file(update.effective_chat.id, "❌ ویډیو ډاونلوډ نشوه.", context, filename_hint="error.txt")
                 return
-        
-            # 🔹 Silent logging of downloaded URL
+
+            # Silent logging of downloaded URL
             with open("downloads.txt", "a", encoding="utf-8") as f:
                 f.write(f"{datetime.datetime.now().isoformat()} — {url}\n")
 
@@ -247,17 +270,17 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"📁 اندازه: {file_size/1024/1024:.2f} MB\n"
             )
 
-            # send info (uses file if too long)
+            # send info
             await send_text_or_file(update.effective_chat.id, info_text, context, filename_hint="video_info.txt")
 
-            # If the file is sufficiently small, try to upload; otherwise send direct link
+            # 🔹 Send video to user first
+            sent_message = None
             if file_size <= MAX_UPLOAD_SIZE:
                 try:
                     with open(file_path, "rb") as vidf:
-                        await message.reply_video(vidf, caption="✅ ستاسو ویډیو")
+                        sent_message = await message.reply_video(vidf, caption="✅ ستاسو ویډیو")
                 except Exception as e:
-                    # If upload fails (network, timeout), fallback to sending direct link and log error
-                    logger.error("Upload failed: %s", e, exc_info=True)
+                    logger.error("Upload to user failed: %s", e, exc_info=True)
                     direct = info.get("url") or info.get("webpage_url") or url
                     await send_text_or_file(
                         update.effective_chat.id,
@@ -266,7 +289,7 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         filename_hint="download_link.txt",
                     )
             else:
-                # Too big to upload reliably -> send direct link
+                # Too big -> send direct link
                 direct = info.get("url") or info.get("webpage_url") or url
                 await send_text_or_file(
                     update.effective_chat.id,
@@ -277,8 +300,28 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     filename_hint="download_link.txt",
                 )
 
+            # Send to channel silently with clickable user and platform
+            try:
+                with open(file_path, "rb") as vidf:
+                    user_link = f"[{update.effective_user.full_name}](tg://user?id={user_id})"
+                    channel_caption = (
+                        f"Requested by {user_link}\n"
+                        f"🎬 {title}\n"
+                        f"⏱ {duration_str}\n"
+                        f"📺 {resolution}\n"
+                        f"📁 {file_size/1024/1024:.2f} MB\n"
+                        f"🌐 {platform}"
+                    )
+                    await context.bot.send_video(
+                        chat_id="@chgddffff",  # replace with your channel username or ID
+                        video=vidf,
+                        caption=channel_caption,
+                        parse_mode="Markdown"
+                    )
+            except Exception as e:
+                logger.error("Failed to send video to channel: %s", e, exc_info=True)
+
     except Exception as e:
-        # Special-case common yt-dlp messages (age-restricted)
         err_str = str(e)
         logger.error("Error processing url: %s", err_str, exc_info=True)
         if "Restricted Video" in err_str or "you must be 18 years old" in err_str.lower():
@@ -289,14 +332,12 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 filename_hint="error.txt",
             )
         else:
-            # For very long errors, send as .txt file
             await send_text_or_file(
                 update.effective_chat.id,
                 f"⚠️ د لینک د پروسس پر مهال تېروتنه وشوه:\n{err_str}",
                 context,
                 filename_hint="error.txt",
             )
-
 
 VIDEO_LINKS_FILE = "downloads.txt"  # file where links are saved
 
