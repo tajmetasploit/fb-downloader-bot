@@ -203,8 +203,125 @@ def get_platform_name(url: str) -> str:
         if key in url:
             return name
     return "Unknown"
+"""
+async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    message = update.message
+    if not message or not message.text:
+        return
+
+    url = message.text.strip()
+    if not is_supported_url(url):
+        await send_text_or_file(
+            update.effective_chat.id,
+            "❌ مهرباني وکړئ د لاندی لیکل شویو سوشل میدیا بلتفارم لینک (Facebook, TikTok, Instagram, VK, Snapchat, YouTube) لینک واستوئ.",
+            context,
+            filename_hint="error.txt",
+        )
+        return
+
+    # Add user to persistent set if new
+    user_id = update.effective_user.id
+    if user_id not in users:
+        users.add(user_id)
+        save_users(users)
+
+    await send_text_or_file(update.effective_chat.id, "⏳ مهرباني وکړئ لږ صبر وکړئ — ویډیو ښکته کېږي...", context, filename_hint="downloading.txt")
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.UPLOAD_VIDEO)
+
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            ydl_opts = {
+                "outtmpl": os.path.join(tmpdir, "video.%(ext)s"),
+                "format": "best",
+                "noplaylist": True,
+                "quiet": True,
+                "no_warnings": True,
+                # Optional: pass headers or cookie file if you need to download restricted content
+                "http_headers": {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                                  "(KHTML, like Gecko) Chrome/115.0 Safari/537.36",
+                },
+                # "cookiefile": "cookies.txt",  # uncomment/use if you have cookies
+            }
+
+            with YoutubeDL(ydl_opts) as ydl:
+                # extract_info downloads the file because download=True
+                info = ydl.extract_info(url, download=True)
+                file_path = ydl.prepare_filename(info)
+
+            if not os.path.exists(file_path):
+                await send_text_or_file(update.effective_chat.id, "❌ ویډیو ډاونلوډ نشوه.", context, filename_hint="error.txt")
+                return
+        
+            # 🔹 Silent logging of downloaded URL
+            with open("downloads.txt", "a", encoding="utf-8") as f:
+                f.write(f"{datetime.datetime.now().isoformat()} — {url}\n")
+
+            file_size = os.path.getsize(file_path)
+            duration = info.get("duration")
+            duration_str = f"{int(duration//60)} دقیقې {int(duration%60)} ثانیې" if duration else "نامعلومه"
+            resolution = info.get("height") or info.get("format_note") or "نامعلومه"
+            title = info.get("title") or "ویډیو"
+
+            info_text = (
+                f"🎬 سرلیک: {title}\n"
+                f"⏱ موده: {duration_str}\n"
+                f"📺 کیفیت: {resolution}\n"
+                f"📁 اندازه: {file_size/1024/1024:.2f} MB\n"
+            )
+
+            # send info (uses file if too long)
+            await send_text_or_file(update.effective_chat.id, info_text, context, filename_hint="video_info.txt")
+
+            # If the file is sufficiently small, try to upload; otherwise send direct link
+            if file_size <= MAX_UPLOAD_SIZE:
+                try:
+                    with open(file_path, "rb") as vidf:
+                        await message.reply_video(vidf, caption="✅ ستاسو ویډیو")
+                except Exception as e:
+                    # If upload fails (network, timeout), fallback to sending direct link and log error
+                    logger.error("Upload failed: %s", e, exc_info=True)
+                    direct = info.get("url") or info.get("webpage_url") or url
+                    await send_text_or_file(
+                        update.effective_chat.id,
+                        "⚠️ د ویډیو اپلوډولو کې ستونزه راغله. لطفاً دا لینک په براوزر کې خلاص کړئ:\n\n" + direct,
+                        context,
+                        filename_hint="download_link.txt",
+                    )
+            else:
+                # Too big to upload reliably -> send direct link
+                direct = info.get("url") or info.get("webpage_url") or url
+                await send_text_or_file(
+                    update.effective_chat.id,
+                    "⚠️ ویډیو ډېره لویه ده دلته نه لیږل کیژی.\n\n"
+                    "📎 مهرباني وکړئ لاندې لینک په براوزر کې خلاص کړئ او ویډیو ښکته کړئ:\n\n"
+                    + direct,
+                    context,
+                    filename_hint="download_link.txt",
+                )
+
+    except Exception as e:
+        # Special-case common yt-dlp messages (age-restricted)
+        err_str = str(e)
+        logger.error("Error processing url: %s", err_str, exc_info=True)
+        if "Restricted Video" in err_str or "you must be 18 years old" in err_str.lower():
+            await send_text_or_file(
+                update.effective_chat.id,
+                "⚠️ دا ویډیو د عمر محدودیت لري (۱۸+). د لاگین یا کوکیز پرته ډاونلوډ ممکن نه دی.",
+                context,
+                filename_hint="error.txt",
+            )
+        else:
+            # For very long errors, send as .txt file
+            await send_text_or_file(
+                update.effective_chat.id,
+                f"⚠️ د لینک د پروسس پر مهال تېروتنه وشوه:\n{err_str}",
+                context,
+                filename_hint="error.txt",
+            )
 
 
+"""
 async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
     if not message or not message.text:
@@ -252,7 +369,7 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             if not os.path.exists(file_path):
                 await send_text_or_file(update.effective_chat.id, "❌ ویډیو ډاونلوډ نشوه.", context, filename_hint="error.txt")
-                return
+                return                      
 
             # Silent logging of downloaded URL
             with open("downloads.txt", "a", encoding="utf-8") as f:
@@ -275,11 +392,12 @@ async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await send_text_or_file(update.effective_chat.id, info_text, context, filename_hint="video_info.txt")
 
             # 🔹 Send video to user first
-            sent_message = None
+            #sent_message = None
             if file_size <= MAX_UPLOAD_SIZE:
                 try:
                     with open(file_path, "rb") as vidf:
-                        sent_message = await message.reply_video(vidf, caption="✅ ستاسو ویډیو")
+                        #await message.reply_video(vidf, caption="✅ ستاسو ویډیو")
+                        await message.reply_video(vidf, caption="✅ ستاسو ویډیو")
                 except Exception as e:
                     logger.error("Upload to user failed: %s", e, exc_info=True)
                     direct = info.get("url") or info.get("webpage_url") or url
